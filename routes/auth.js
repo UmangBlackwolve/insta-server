@@ -1,73 +1,67 @@
-const express = require('express')
-const router = express.Router()
-const mongoose = require('mongoose')
-const User = mongoose.model('User')
-const bcrypt = require('bcryptjs')
-const jwt = require('jsonwebtoken')
-const { JWT_SECRET } = require('../config/keys')
-const requireLogin = require('../middleware/requireLogin')
+const express = require('express');
+const router = express.Router();
+const mongoose = require('mongoose');
+const User = mongoose.model('User');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { JWT_SECRET } = require('../config/keys');
+const requireLogin = require('../middleware/requireLogin');
 
-router.post('/signup', (req, res) => {
-  const { name, email, password , pic } = req.body
+router.post('/signup', async (req, res) => {
+  const { name, email, password, pic } = req.body;
 
   if (!name || !email || !password) {
-    return res.status(422).json({ error: "please add all fields" })
+    return res.status(422).json({ error: "Please add all fields" });
   }
-  User.findOne({ email: email })
-    .then((savedUser) => {
-      if (savedUser) {
-        return res.status(422).json({ error: "User already exists with that email" })
-      }
 
-      bcrypt.hash(password, 12)
-        .then((hashedPassword) => {
-          const user = new User({
-            email,
-            password: hashedPassword,
-            name,
-            pic
-          })
-          user.save().then((user) => {
-            res.json({ message: "saved successfully" })
-          }).catch((err) => {
-            console.log(err)
-          })
-        })
-        .catch((err) => {
-          console.log(err)
-        })
-    })
+  try {
+    const savedUser = await User.findOne({ email: email });
+    if (savedUser) {
+      return res.status(422).json({ error: "User already exists with that email" });
+    }
 
-})
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-router.post('/signin', (req, res) => {
-  const { email, password } = req.body
+    const user = new User({
+      email,
+      password: hashedPassword,
+      name,
+      pic
+    });
+
+    await user.save();
+    res.json({ message: "Saved successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.post('/signin', async (req, res) => {
+  const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(422).json({ error: "please add email or password" })
+    return res.status(422).json({ error: "Please add email or password" });
   }
 
-  User.findOne({ email: email })
-    .then((savedUser) => {
-      if (!savedUser) {
-        return res.status(422).json({ error: "invalid email or password" })
-      }
+  try {
+    const savedUser = await User.findOne({ email: email });
+    if (!savedUser) {
+      return res.status(422).json({ error: "Invalid email or password" });
+    }
 
-      bcrypt.compare(password, savedUser.password)
-        .then((doMatch) => {
-          if (doMatch) {
-            const token = jwt.sign({ _id: savedUser._id }, JWT_SECRET)
-            const { _id, name, email, followers, following , pic } = savedUser
-            res.json({ token, user: { _id, name, email, followers, following , pic }, message: "successfully signed in" })
-          }
-          else {
-            return res.status(422).json({ error: "invalid email or password" })
-          }
-        })
-        .catch((err) => {
-          console.log(err)
-        })
-    })
-})
+    const doMatch = await bcrypt.compare(password, savedUser.password);
+    if (doMatch) {
+      const token = jwt.sign({ _id: savedUser._id }, JWT_SECRET);
+      const { _id, name, email, followers, following, pic } = savedUser;
+      res.json({ token, user: { _id, name, email, followers, following, pic }, message: "Successfully signed in" });
+    } else {
+      res.status(422).json({ error: "Invalid email or password" });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
-module.exports = router
+module.exports = router;

@@ -1,134 +1,134 @@
-const express = require('express')
-const router = express.Router()
-const mongoose = require('mongoose')
-const requireLogin = require('../middleware/requireLogin')
-const Post = mongoose.model('Post')
+const express = require('express');
+const router = express.Router();
+const mongoose = require('mongoose');
+const requireLogin = require('../middleware/requireLogin');
+const Post = mongoose.model('Post');
 
-router.get('/allposts', (req, res) => {
-  Post.find()
-    .populate("postedBy", "_id name")
-    .populate("comments.postedBy", "_id name")
-    .then((posts) => {
-      res.json({ posts })
-    })
-    .catch((err) => {
-      console.log(err)
-    })
-})
-
-
-router.get('/getsubpost', requireLogin, (req, res) => {
-  Post.find({postedBy:{ $in: req.user.following}})
-    .populate("postedBy", "_id name")
-    .populate("comments.postedBy", "_id name")
-    .then((posts) => {
-      res.json({ posts })
-    })
-    .catch((err) => {
-      console.log(err)
-    })
-})
-
-
-router.post('/createpost', requireLogin, (req, res) => {
-  const { title, body, pic } = req.body
-  if (!title || !body || !pic) {
-    return res.status(422).json({ error: "please add all fields" })
+router.get('/allposts', async (req, res) => {
+  try {
+    const posts = await Post.find()
+      .populate("postedBy", "_id name")
+      .populate("comments.postedBy", "_id name");
+    res.json({ posts });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to retrieve posts" });
   }
-  req.user.password = undefined
-  const post = new Post({
-    title,
-    body,
-    pic,
-    postedBy: req.user
-  })
-  post.save().then((result) => {
-    res.json({ post: result })
-  })
-    .catch((err) => {
-      console.log(err)
-    })
-})
+});
 
-router.get('/mypost', requireLogin, (req, res) => {
-  Post.find({ postedBy: req.user._id })
-    .populate("postedBy", "_id name")
-    .then((mypost) => {
-      res.json({ mypost })
-    })
-    .catch((err) => {
-      console.log(err)
-    })
-})
+router.get('/getsubpost', requireLogin, async (req, res) => {
+  try {
+    const posts = await Post.find({ postedBy: { $in: req.user.following } })
+      .populate("postedBy", "_id name")
+      .populate("comments.postedBy", "_id name");
+    res.json({ posts });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to retrieve subscribed posts" });
+  }
+});
 
-router.put('/like', requireLogin, (req, res) => {
-  Post.findByIdAndUpdate(req.body.postId, {
-    $push: { likes: req.user._id }
-  }, {
-    new: true
-  }).then((result) => {
-    res.json(result)
-  }).catch((err) => {
-    res.status(422).json({ error: err })
-  })
-})
+router.post('/createpost', requireLogin, async (req, res) => {
+  const { title, body, pic } = req.body;
+  if (!title || !body || !pic) {
+    return res.status(422).json({ error: "Please add all fields" });
+  }
 
-router.put('/unlike', requireLogin, (req, res) => {
-  Post.findByIdAndUpdate(req.body.postId, {
-    $pull: { likes: req.user._id }
-  }, {
-    new: true
-  }).then((result) => {
-    res.json(result)
-  }).catch((err) => {
-    res.status(422).json({ error: err })
-  })
-})
+  try {
+    req.user.password = undefined;
+    const post = new Post({
+      title,
+      body,
+      pic,
+      postedBy: req.user
+    });
+    const result = await post.save();
+    res.json({ post: result });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to create post" });
+  }
+});
 
-router.put('/comment', requireLogin, (req, res) => {
+router.get('/mypost', requireLogin, async (req, res) => {
+  try {
+    const mypost = await Post.find({ postedBy: req.user._id })
+      .populate("postedBy", "_id name");
+    res.json({ mypost });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to retrieve your posts" });
+  }
+});
+
+router.put('/like', requireLogin, async (req, res) => {
+  try {
+    const result = await Post.findByIdAndUpdate(
+      req.body.postId,
+      { $push: { likes: req.user._id } },
+      { new: true }
+    );
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(422).json({ error: err });
+  }
+});
+
+router.put('/unlike', requireLogin, async (req, res) => {
+  try {
+    const result = await Post.findByIdAndUpdate(
+      req.body.postId,
+      { $pull: { likes: req.user._id } },
+      { new: true }
+    );
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(422).json({ error: err });
+  }
+});
+
+router.put('/comment', requireLogin, async (req, res) => {
   const comment = {
     text: req.body.text,
     postedBy: req.user._id
+  };
+
+  try {
+    const result = await Post.findByIdAndUpdate(
+      req.body.postId,
+      { $push: { comments: comment } },
+      { new: true }
+    )
+      .populate("comments.postedBy", "_id name")
+      .populate("postedBy", "_id name");
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(422).json({ error: err });
   }
-  Post.findByIdAndUpdate(req.body.postId, {
-    $push: { comments: comment }
-  }, {
-    new: true
-  })
-    .populate("comments.postedBy", "_id name")
-    .populate("postedBy", "_id name")
-    .then((result) => {
-      res.json(result)
-    }).catch((err) => {
-      res.status(422).json({ error: err })
-    })
-})
+});
 
-router.delete('/deletepost/:postId', requireLogin, (req, res) => {
-  Post.findOne({ _id: req.params.postId })
-    .populate("postedBy", "_id")
-    .then((post) => {
-      if (!post) {
-        return res.status(422).json({ error: "Post not found" })
-      }
-      if (post.postedBy._id.toString() === req.user._id.toString()) {
-        Post.deleteOne({ _id: req.params.postId })
-          .then(result => {
-            res.json({ message: "Post deleted successfully" })
-          }).catch(err => {
-            console.log(err)
-            res.status(500).json({ error: "Failed to delete post" })
-          })
-      } else {
-        res.status(403).json({ error: "Unauthorized action" })
-      }
-    })
-    .catch((err) => {
-      console.log(err)
-      res.status(422).json({ error: "Post not found" })
-    })
-})
+router.delete('/deletepost/:postId', requireLogin, async (req, res) => {
+  try {
+    const post = await Post.findOne({ _id: req.params.postId })
+      .populate("postedBy", "_id");
+    
+    if (!post) {
+      return res.status(422).json({ error: "Post not found" });
+    }
+    
+    if (post.postedBy._id.toString() === req.user._id.toString()) {
+      await Post.deleteOne({ _id: req.params.postId });
+      res.json({ message: "Post deleted successfully" });
+    } else {
+      res.status(403).json({ error: "Unauthorized action" });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete post" });
+  }
+});
 
-
-
-module.exports = router
+module.exports = router;

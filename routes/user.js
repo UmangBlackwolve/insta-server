@@ -8,7 +8,7 @@ const requireLogin = require('../middleware/requireLogin');
 // Get User Profile
 router.get('/user/:id', requireLogin, async (req, res) => {
   try {
-    const user = await User.findOne({ _id: req.params.id }).select("-password");
+    const user = await User.findById(req.params.id).select("-password");
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -18,8 +18,8 @@ router.get('/user/:id', requireLogin, async (req, res) => {
 
     res.json({ user, posts });
   } catch (err) {
-    console.log(err);
-    res.status(422).json({ error: err.message });
+    console.error('Error fetching user profile:', err);
+    res.status(500).json({ error: "Failed to retrieve user profile" });
   }
 });
 
@@ -33,7 +33,7 @@ router.put('/follow', requireLogin, async (req, res) => {
     );
 
     if (!followUser) {
-      return res.status(422).json({ error: "User not found" });
+      return res.status(404).json({ error: "User not found" });
     }
 
     const currentUser = await User.findByIdAndUpdate(
@@ -44,8 +44,8 @@ router.put('/follow', requireLogin, async (req, res) => {
 
     res.json(currentUser);
   } catch (err) {
-    console.error('Error in follow route:', err); // Debugging log
-    return res.status(422).json({ error: err.message });
+    console.error('Error in follow route:', err);
+    res.status(500).json({ error: "Failed to follow user" });
   }
 });
 
@@ -59,7 +59,7 @@ router.put('/unfollow', requireLogin, async (req, res) => {
     );
 
     if (!unfollowUser) {
-      return res.status(422).json({ error: "User not found" });
+      return res.status(404).json({ error: "User not found" });
     }
 
     const currentUser = await User.findByIdAndUpdate(
@@ -70,8 +70,8 @@ router.put('/unfollow', requireLogin, async (req, res) => {
 
     res.json(currentUser);
   } catch (err) {
-    console.error('Error in unfollow route:', err); // Debugging log
-    return res.status(422).json({ error: err.message });
+    console.error('Error in unfollow route:', err);
+    res.status(500).json({ error: "Failed to unfollow user" });
   }
 });
 
@@ -86,8 +86,8 @@ router.put('/updatepic', requireLogin, async (req, res) => {
 
     res.json(result);
   } catch (err) {
-    console.error('Error updating profile picture:', err); // Debugging log
-    res.status(422).json({ error: "pic cannot be posted" });
+    console.error('Error updating profile picture:', err);
+    res.status(500).json({ error: "Failed to update profile picture" });
   }
 });
 
