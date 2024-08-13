@@ -15,10 +15,6 @@ const postSchema = mongoose.Schema({
     type: String,
     required: true
   },
-  postedBy: {
-    type: ObjectId,
-    ref: 'User'
-  },
   likes: [
     {
       type: ObjectId,
@@ -33,6 +29,10 @@ const postSchema = mongoose.Schema({
         ref: 'User'
       }
     }
-  ]
-})
+  ],
+  postedBy: {
+    type: ObjectId,
+    ref: 'User'
+  },
+}, { timestamps: true })
 mongoose.model('Post', postSchema)
