@@ -125,7 +125,7 @@ router.delete('/deletepost/:postId', requireLogin, async (req, res) => {
       await Post.deleteOne({ _id: req.params.postId });
       res.json({ message: "Post deleted successfully" });
     } else {
-      res.status(403).json({ error: "Unauthorized action" });
+      res.status(403).json({ error: "Unauthorized action" }); 
     }
   } catch (err) {
     console.error(err);

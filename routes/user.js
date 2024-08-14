@@ -91,4 +91,26 @@ router.put('/updatepic', requireLogin, async (req, res) => {
   }
 });
 
+router.post('/search-users', async (req, res) => {
+  try {
+    const query = req.body.query;
+    if (!query) {
+      return res.json({ users: [] });
+    }
+
+    const userPattern = new RegExp(".*", "i"); // Matches all documents
+    console.log("Search pattern:", userPattern);
+
+    const users = await User.find({ email: { $regex: userPattern } }).select("_id email");
+    console.log("Matched users:", users);
+
+    res.json({ users });
+  } catch (err) {
+    console.error("Error fetching users:", err.message);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+
+
 module.exports = router;
